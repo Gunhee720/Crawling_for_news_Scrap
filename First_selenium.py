@@ -15,11 +15,13 @@ options.add_experimental_option("detach",True)
 
 driver = webdriver.Chrome(options=options)
 wait = WebDriverWait(driver, 4)
-url = "https://search.naver.com/search.naver?ssc=tab.news.all&where=news&sm=tab_jum&query=%EB%AA%85%EC%A7%80%EB%8C%80"
+url = "https://www.veritas-a.com/news/articleView.html?idxno=580632"
 driver.get(url)
 
-news_option_btn = driver.find_element(By.CSS_SELECTOR,".btn_option _search_option_open_btn")
-news_option_btn.click()
+driver.execute_cdp_cmd("Page.printToPDF", {
+    "path": "veritas_article.pdf",
+    "printBackground": True
+})
 
 # query = driver.find_element(By.ID, "query")
 
