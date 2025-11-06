@@ -28,7 +28,8 @@ driver.get(url)
 # 옵션 버튼 클릭
 opt_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".btn_option._search_option_open_btn")))
 opt_btn.click()
-
+print("✅ 검색 옵션 버튼 클릭 완료")
+time.sleep(2)
 # '1주' 버튼 클릭
 week_btn = wait.until(EC.element_to_be_clickable((By.XPATH, '//a[@class="txt" and text()="1주"]')))
 week_btn.click()
@@ -43,8 +44,9 @@ news_blocks = driver.find_elements(
     By.CSS_SELECTOR,
     "div.sds-comps-vertical-layout.sds-comps-full-layout[data-template-type='vertical']"
 )
-print("월요일이 왔군요...!")
-print("명지대 뉴스 스크랩 프로그램을 실행하겠습니다.")
+
+print("\n월요일이 왔군요 화이팅!")
+print("\n뉴스 스크랩 프로그램을 실행하겠습니다.\n")
 print(f"총 {len(news_blocks)}개의 기사 블록 탐색 중...")
 
 visited = set()
@@ -60,7 +62,7 @@ for idx, block in enumerate(news_blocks, 1):
 
     for link in all_links:
         i+=1
-        if i >= 3:
+        if i >= 5:
             break
         href = link.get_attribute("href")
         if href and href.startswith("http") and href not in visited:
@@ -68,7 +70,9 @@ for idx, block in enumerate(news_blocks, 1):
             try:
                 driver.execute_script(f"window.open('{href}', '_blank');")
                 driver.switch_to.window(driver.window_handles[-1])
-                time.sleep(4)
+
+                # 기사 로딩 시간 랜덤 (4~7초)
+                time.sleep(random.uniform(4, 7))
 
                 # 파일명 정리
                 title = driver.title.strip()
@@ -110,7 +114,10 @@ for idx, block in enumerate(news_blocks, 1):
 
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
-                time.sleep(2)
+
+                # 기사 간 랜덤 대기 (3~6초)
+                import random
+                time.sleep(random.uniform(3, 6))
 
             except Exception as e:
                 print(f"⚠️ 오류 발생: {e}")
