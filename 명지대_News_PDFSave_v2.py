@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import time, base64, os
 from datetime import datetime
 import random
+import re
 # ====== 기본 설정 ======
 query = "명지대"
 today = datetime.now().strftime("%Y%m%d")
@@ -59,7 +60,7 @@ for idx, block in enumerate(news_blocks, 1):
     main_links = block.find_elements(By.CSS_SELECTOR, "a[href][data-heatmap-target='.tit']")
     related_links = block.find_elements(By.CSS_SELECTOR, "div.kKg41qrHvplVksYUiHBW a[href]")
     all_links = main_links + related_links
-
+    
     for link in all_links:
         i+=1
         if i >= 20:
@@ -73,24 +74,40 @@ for idx, block in enumerate(news_blocks, 1):
 
                 # 기사 로딩 시간 랜덤 (3~4초)
                 time.sleep(random.uniform(1, 2))
-
-                # 파일명 정리
-                title = driver.title.strip()
                 
-                safe_title = (
-                    title.replace("/", "_")
-                    .replace("\\", "_")
-                    .replace(":", "_")
-                    .replace("*", "_")
-                    .replace("?", "_")
-                    .replace("\"", "_")
-                    .replace("<", "_")
-                    .replace(">", "_")
-                    .replace("|", "_")
-                    .replace("-", "_")
-                )
+                # 파일명 정리
+                raw_title = driver.title.strip()
+                
+                # ✅ 언론사 추출 정규식
+                # 패턴: "... 기사제목 ... - 언론사" 또는 "... :: 언론사"
+                patterns = [
+                    r"(.+?)\s*-\s*(.+)",            # 제목 - 언론사
+                    r"(.+?)\s*::\s*(.+)",           # 제목 :: 언론사
+                ]
+                title = raw_title
+                source = "Unknown"
 
-                filename = os.path.join(save_dir, f"{safe_title[:]}.pdf")
+                for p in patterns:
+                    match = re.match(p, raw_title)
+                    if match:
+                        title = match.group(1).strip()
+                        source = match.group(2).strip()
+                        break
+
+                # ✅ 특정 언론사 치환 규칙
+                source = source.replace("공감언론 뉴시스", "뉴시스")
+
+                # ✅ 기사 소스가 네이버 내부 경로로 나오는 경우 제거
+                noise_words = ["대학뉴스", "대학", "기사본문", "대학소식", "대학교육", "매일일보"]
+                if any(w in source for w in noise_words):
+                    source = "Unknown"
+                # ✅ 파일명 안전 문자 처리  
+                def safe(s):
+                    return re.sub(r'[\\/:*?"<>|]', '_', s).replace("__", "_").strip()
+
+                filename = os.path.join(save_dir, f"{safe(title)}_{safe(source)}.pdf")
+
+                
                 
                 # 이미 저장된 파일이면 스킵
                 if os.path.exists(filename):
