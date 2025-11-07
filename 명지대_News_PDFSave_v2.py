@@ -5,11 +5,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time, base64, os
 from datetime import datetime
-
+import random
 # ====== 기본 설정 ======
 query = "명지대"
 today = datetime.now().strftime("%Y%m%d")
-save_dir = f"./NewsPDFs/{query}_Scrap_{today}/"
+save_dir = f"./NewsPDFs/{query}_네이버_{today}/"
 
 # 폴더 생성
 os.makedirs(save_dir, exist_ok=True)
@@ -45,8 +45,8 @@ news_blocks = driver.find_elements(
     "div.sds-comps-vertical-layout.sds-comps-full-layout[data-template-type='vertical']"
 )
 
-print("\n월요일이 왔군요 화이팅!")
-print("\n뉴스 스크랩 프로그램을 실행하겠습니다.\n")
+print("\n이번주도 힘내세요! 💪")
+print("\nScraping Program을 실행하겠습니다.\n")
 print(f"총 {len(news_blocks)}개의 기사 블록 탐색 중...")
 
 visited = set()
@@ -62,7 +62,7 @@ for idx, block in enumerate(news_blocks, 1):
 
     for link in all_links:
         i+=1
-        if i >= 5:
+        if i >= 20:
             break
         href = link.get_attribute("href")
         if href and href.startswith("http") and href not in visited:
@@ -71,11 +71,12 @@ for idx, block in enumerate(news_blocks, 1):
                 driver.execute_script(f"window.open('{href}', '_blank');")
                 driver.switch_to.window(driver.window_handles[-1])
 
-                # 기사 로딩 시간 랜덤 (4~7초)
-                time.sleep(random.uniform(4, 7))
+                # 기사 로딩 시간 랜덤 (3~4초)
+                time.sleep(random.uniform(1, 2))
 
                 # 파일명 정리
                 title = driver.title.strip()
+                
                 safe_title = (
                     title.replace("/", "_")
                     .replace("\\", "_")
@@ -86,10 +87,11 @@ for idx, block in enumerate(news_blocks, 1):
                     .replace("<", "_")
                     .replace(">", "_")
                     .replace("|", "_")
+                    .replace("-", "_")
                 )
 
-                filename = os.path.join(save_dir, f"{idx:02d}_{safe_title[:40]}.pdf")
-
+                filename = os.path.join(save_dir, f"{safe_title[:]}.pdf")
+                
                 # 이미 저장된 파일이면 스킵
                 if os.path.exists(filename):
                     print(f"⚠️ 이미 저장됨: {filename}")
@@ -97,7 +99,6 @@ for idx, block in enumerate(news_blocks, 1):
                     driver.switch_to.window(driver.window_handles[0])
                     continue
 
-                print("📄 저장 중:", safe_title)
 
                 # ✅ PDF 저장
                 pdf_data = driver.execute_cdp_cmd("Page.printToPDF", {
@@ -110,14 +111,13 @@ for idx, block in enumerate(news_blocks, 1):
                 with open(filename, "wb") as f:
                     f.write(pdf_bytes)
 
-                print(f"✅ PDF 저장 완료: {filename}")
+                print(f"✅저장: {filename}")
 
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
 
-                # 기사 간 랜덤 대기 (3~6초)
-                import random
-                time.sleep(random.uniform(3, 6))
+                # 기사 간 랜덤 대기 (3~4초)
+                time.sleep(random.uniform(2, 3))
 
             except Exception as e:
                 print(f"⚠️ 오류 발생: {e}")
