@@ -62,9 +62,6 @@ for idx, block in enumerate(news_blocks, 1):
     all_links = main_links + related_links
     
     for link in all_links:
-        i+=1
-        if i >= 20:
-            break
         href = link.get_attribute("href")
         if href and href.startswith("http") and href not in visited:
             visited.add(href)
@@ -72,41 +69,68 @@ for idx, block in enumerate(news_blocks, 1):
                 driver.execute_script(f"window.open('{href}', '_blank');")
                 driver.switch_to.window(driver.window_handles[-1])
 
-                # 기사 로딩 시간 랜덤 (3~4초)
+                # 기사 로딩 시간 랜덤 (1-2초)
                 time.sleep(random.uniform(1, 2))
-                
+                title_print = driver.title
                 # 파일명 정리
                 raw_title = driver.title.strip()
+                print("raw_title",raw_title)
+                # 1️⃣ 언론사명 추출: " - 언론사명" 형태
+                press_match = re.search(r"(?:-|::|＞|｜|\||—|‧)\s*([^\-:|>｜‧]+)\s*(?:$|::|-|$)", raw_title)
+                press = press_match.group(1).strip() if press_match else ""
                 
-                # ✅ 언론사 추출 정규식
-                # 패턴: "... 기사제목 ... - 언론사" 또는 "... :: 언론사"
-                patterns = [
-                    r"(.+?)\s*-\s*(.+)",            # 제목 - 언론사
-                    r"(.+?)\s*::\s*(.+)",           # 제목 :: 언론사
+                # 2️⃣ 기사 제목 부분: '<' 또는 '-' 앞의 주요 제목만 추출
+                # <, |, - 구분이 섞여 있는 경우에도 대응
+                main_title = re.split(r"[-<|:＞｜‧]", raw_title)[0].strip()
+
+                # 3️⃣ 불필요한 단어 제거 (양쪽에 있어도 전부 제거)
+                remove_words = [
+                    "대학뉴스", "대학소식", "대학교육", "기사본문", "대학", "뉴스",
+                    "보도자료", "기획", "교육뉴스", "언론보도", "공감언론"
                 ]
-                title = raw_title
-                source = "Unknown"
+                for w in remove_words:
+                    main_title = main_title.replace(w, "")
+                    press = press.replace("공감언론", "")
+                    press = press.replace("E동아", "동아일보")
 
-                for p in patterns:
-                    match = re.match(p, raw_title)
-                    if match:
-                        title = match.group(1).strip()
-                        source = match.group(2).strip()
-                        break
+                if not press:
+                    press = "예상:대학저널"  
 
-                # ✅ 특정 언론사 치환 규칙
-                source = source.replace("공감언론 뉴시스", "뉴시스")
+                # 4️⃣ 양쪽 공백 정리
+                main_title = main_title.strip(" _-·—–")
 
-                # ✅ 기사 소스가 네이버 내부 경로로 나오는 경우 제거
-                noise_words = ["대학뉴스", "대학", "기사본문", "대학소식", "대학교육", "매일일보"]
-                if any(w in source for w in noise_words):
-                    source = "Unknown"
-                # ✅ 파일명 안전 문자 처리  
-                def safe(s):
-                    return re.sub(r'[\\/:*?"<>|]', '_', s).replace("__", "_").strip()
+                # 5️⃣ 파일명 구성
+            
+                final_title = f"{main_title}_{press}"
+            
 
-                filename = os.path.join(save_dir, f"{safe(title)}_{safe(source)}.pdf")
+                # ===========================
+                # 🚫 필터링 로직
+                # ===========================
+                if "명지대" not in main_title:
+                    skip_count += 1
+                    print(f"⚠️ '{main_title}' → '명지대' 미포함 (누락 {skip_count}/3)")
 
+                    driver.close()
+                    driver.switch_to.window(driver.window_handles[0])
+
+                    # 🔸 3번 이상 누락 시 종료
+                    if skip_count >= 3:
+                        print("\n🚨 '명지대' 포함되지 않은 기사가 3회 연속 발견되어 프로그램을 종료합니다.")
+                        driver.quit()
+                        raise SystemExit
+                    continue
+                else:
+                    # 포함되면 카운트 초기화
+                    skip_count = 0
+
+                # 6️⃣ 파일명에서 불법 문자 제거
+                safe_title = re.sub(r'[\\/*?:"<>|]', "_", final_title)
+                safe_title = re.sub(r'_+', '_', safe_title)   # 여러 개 연속된 '_' → 하나로 축소
+                safe_title = safe_title.strip('_ ')
+
+                # 8️⃣ 최종 경로 반환
+                filename = os.path.join(save_dir, f"{safe_title}.pdf")
                 
                 
                 # 이미 저장된 파일이면 스킵
@@ -133,7 +157,7 @@ for idx, block in enumerate(news_blocks, 1):
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
 
-                # 기사 간 랜덤 대기 (3~4초)
+                # 기사 간 랜덤 대기 (2-3초)
                 time.sleep(random.uniform(2, 3))
 
             except Exception as e:
